@@ -1,0 +1,19 @@
+.ui-tooltip {
+	background-color: #FFFF55;
+	color: black;
+	border: 3px solid black;
+	border-radius: 8px;
+}
+
+#piece-window {
+	width: 500;
+	height: 500;
+	display: none;
+}
+#piece-canvas-container {
+	position: absolute;
+	width: 420;
+	height: 300;
+	border: 1px dashed red;
+}
+
