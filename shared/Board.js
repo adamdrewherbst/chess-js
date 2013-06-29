@@ -6,6 +6,7 @@ function Board(rows, cols, squareLength) {
 	this.rows = rows;
 	this.cols = cols;
 	this.squareLength = squareLength;
+	this.initSquareLength = squareLength; //board may be resized by the user
 	this.$board = $('<div class="board_outer"></div>');
 	for(var n = 0; n < rows; n++) this.$board.append('<div class="board_row"></div>');
 	for(var n = 0; n < rows*cols; n++) {
@@ -79,6 +80,18 @@ function Board(rows, cols, squareLength) {
 Board.gameBoard = null; //should be set by the main script
 
 //methods
+Board.prototype.setSquareLength = function(squareLength) {
+	var _self = this;
+	_self.squareLength = squareLength;
+	_self.$board.find('.square').css({
+		width: _self.squareLength + 'px',
+		height: _self.squareLength + 'px'
+	});
+	_self.$board.find('.board_row').css({
+		width: (_self.cols * _self.squareLength) + 'px'
+	});
+};
+
 Board.prototype.setEditMode = function() {
 	this.$board.find('.piece_img').each(function(i) {
 		setEditMode($(this));
@@ -119,7 +132,7 @@ function setEditMode($piece) {
 						console.info('JSON SENDING:');
 						console.info(json);
 						do_ajax('save_piece', {
-								user: state.nickname, board: Board.gameBoard.boardName, color: pieceColor, rank: pieceRank,
+								nickname: state.nickname, user: state.nickname, board: Board.gameBoard.boardName, color: pieceColor, rank: pieceRank,
 								imageSVG: svg, imageJSON: JSON.stringify(json)
 							},
 							function(data) {
@@ -263,6 +276,11 @@ function selectBoard() {
 					if($board.length < 0) return;
 					var user = $board.find('.board-user').html(), board = $board.find('.board-name').html();
 					Board.gameBoard.loadBoard(user, board);
+					//if user is loading their own board, assume they want to edit it rather than save under a new name
+					if(user === state.nickname && $('#board-name').length > 0) {
+						Board.gameBoard.boardName = board;
+						$('#board-name').html(board);
+					}
 					$boardPanel.empty();
 					$dialog.dialog('close');
 				}
@@ -272,6 +290,17 @@ function selectBoard() {
 		}
 	});
 }
+
+Board.prototype.reset = function() {
+	this.boardName = '';
+	this.$board.find('.piece_img').each(function(i) {
+		var $this = $(this);
+		$this.attr('src', blankPiece);
+		$this.data('imgSVG', '');
+		$this.data('imgJSON', '');
+	});
+}
+
 Board.prototype.loadBoard = function(user, board) {
 	var _self = this;
 	do_ajax('load_board', {'nickname': state.nickname, 'user': user, 'board': board}, function (data) {
@@ -303,8 +332,12 @@ Board.prototype.save = function() {
 		var overwrite = confirm('Overwrite board "' + this.boardName + '"?');
 		if(!overwrite) this.boardName = '';
 	}
-	while(isNull(this.boardName)) this.boardName = prompt('Enter board name:');
+	if(isNull(this.boardName)) this.boardName = prompt('Enter board name:');
+	if(isNull(this.boardName)) return;
+
+	//tried using 'painty' plugin to save thumbnail of entire board from its HTML content - not working so far
 	var boardContents = this.$board[0].innerHTML;
+	
 	console.log('saving board ' + this.boardName);
 	do_ajax('save_board', {'nickname': state.nickname, 'board': this.boardName, 'contents': boardContents}, function(data) {
 		console.log(data.response);
@@ -317,7 +350,7 @@ Board.prototype.save = function() {
 				console.log(pieceName($piece));
 				console.info($piece.data('imgSVG'));
 				do_ajax('save_piece', {
-						user: state.nickname, board: this.boardName, color: color, rank: rank,
+						nickname: state.nickname, user: state.nickname, board: this.boardName, color: color, rank: rank,
 						imageSVG: $piece.data('imgSVG'), imageJSON: JSON.stringify($piece.data('imgJSON'))
 					},
 					function(data) {}, {type: 'POST'});
@@ -326,6 +359,21 @@ Board.prototype.save = function() {
 	}
 }
 
+function addResizeSlider($panel) {
+	$panel.append('<div id="resize_board"></div><span id="resize_label">Board Size = 100%</span>');
+	var $slider = $('#resize_board');
+	$slider.slider({
+		min: 0,
+		max: 200,
+		step: 1,
+		value: 100,
+		change: function(event, ui) {
+			var newLength = Math.round(Board.gameBoard.initSquareLength * ui.value / 100);
+			Board.gameBoard.setSquareLength(newLength);
+			$('#resize_label').html('Board Size = ' + ui.value + '%');
+		}
+	});
+}
 
 $(document).ready(function() {
 	//allow user to select a saved board from the database

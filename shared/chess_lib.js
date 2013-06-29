@@ -41,10 +41,14 @@ function do_ajax(action, data, success, additional) {
 }
 
 function login(func) { //func is executed after logging in
-	var promptStr = 'Enter your nickname.', nickname = '';
-	while(state.nickname == '') {
+	var promptStr = 'Enter your nickname.', nickname = '', tries = 0;
+	while(state.nickname == '' && tries < 3) {
 		state.nickname = nickname = prompt(promptStr);
-		if(nickname == '') return false;
+		tries++;
+		if(nickname == '') {
+			promptStr = 'Please re-enter.';
+			continue;
+		}
 		do_ajax('register', {'name': state.nickname}, function(data) {
 			console.info('reg result');
 			console.info(data);
@@ -53,7 +57,7 @@ function login(func) { //func is executed after logging in
 		}, {async: false});
 		promptStr = 'Name is already taken. Enter your nickname.';
 	}
-	return true;
+	return state.nickname != '';
 }
 function logout(func) {
 	do_ajax('logout', {'nickname': state.nickname}, function(data) {

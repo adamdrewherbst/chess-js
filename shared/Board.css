@@ -5,6 +5,7 @@
 }
 .board_row {
 	clear: both;
+	overflow-x: auto;
 }
 .board_row:nth-child(even) > .square:nth-child(even) {
 	background-color: black;
@@ -48,3 +49,14 @@
 .board-thumb[select="true"] {
 	background-color: #00AAAA;
 }
+
+#resize_board {
+	float: left;
+	margin: 10px 10px 10px 25px;
+	background-color: red;
+	width: 200px;
+}
+#resize_label {
+	margin: 10px 0px;
+}
+

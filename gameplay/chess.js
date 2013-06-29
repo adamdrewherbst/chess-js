@@ -210,11 +210,13 @@ function setLoggedIn(isLoggedIn) {
 	if(isLoggedIn) {
 		$('#logout_msg').hide();
 		$('#login_msg').show();
+		$('#select_board').show();
 	}else {
 		$('#login_msg').hide();
 		$('#logout_msg').show();
 		$('#create_game').hide();
 		$('#leave_game').hide();
+		$('#select_board').hide();
 		resetState();
 	}
 }
@@ -354,6 +356,7 @@ $(document).ready(function() {
 	board = new Board(8, 8, 100);
 	board.setPlayMode();
 	Board.gameBoard = board;
+	addResizeSlider($('#controls'));
 	$('#dialog_overlay').css('visibility', 'hidden');
 	$('#game_info').css('visibility', 'hidden');
 	setLoggedIn(false);

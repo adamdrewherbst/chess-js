@@ -8,6 +8,9 @@
 	overflow: scroll;
 }
 
+#player_info {
+	overflow: auto;
+}
 #controls {
 	float: left;
 }

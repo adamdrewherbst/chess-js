@@ -1,3 +1,16 @@
+#player_info {
+	overflow: auto;
+}
+#controls {
+	float: left;
+}
+#controls > button {
+	float: left;
+}
+#login_msg,#logout_msg {
+	float: right;
+}
+
 .ui-tooltip {
 	background-color: #FFFF55;
 	color: black;

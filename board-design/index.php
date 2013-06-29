@@ -18,13 +18,26 @@
 		<script type="text/javascript" src="chessboard.js"></script>
 	</head>
 	<body>
-		<p> Editing <span id="board-name">Untitled</span> as user <span id="user-name"></span>
-		<br/>Click on a square to edit the piece.</p>
-		<div id="controls">
-			<button type="button" id="select_board" onclick="selectBoard()">Select Board</button>
-			<button type="button" id="save_board" onclick="board.save(); $('board-name').html(board.boardName)">Save Board</button>
-			<button type="button" onclick="logout(logoutFunc)">Log Out</button>
+		<div id="player_info">
+			<div id="controls">
+				<button type="button" id="select_board" onclick="selectBoard()">Select Board</button>
+				<button type="button" id="save_board" onclick="board.save(); $('#board-name').html(Board.gameBoard.boardName)">Save Board</button>
+			</div>
+			<div id="logout_msg">
+				You are logged out.
+				<button type="button" onclick="login(loginFunc)">Log In</button>
+			</div>
+			<div id="login_msg">
+				You are logged in as <span id="nickname"></span>.
+				<button type="button" onclick="logout(logoutFunc)">Log Out</button>
+			</div>
 		</div>
+		
+		<p id="instructions"> Editing board &quot;<span id="board-name">Untitled</span>&quot;
+		<br/>Click on a square to edit the piece.</p>
+
+		<div id="board_panel"></div>
+
 		<div id="piece-window">
 			<div id="piece-canvas-container">
 				<!--<canvas id="piece-canvas"></canvas>-->
