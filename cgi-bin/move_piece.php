@@ -15,7 +15,7 @@ update(PIECE_TBL, 'Row='.strval($newRow).',Col='.strval($newCol),
 	'Color="'.$color.'" AND GameID='.$gameID.' AND PieceID="'.$pieceID.'"');
 unlock();
 
-$pusher->trigger($gameChannel, 'movePiece', array('color' => $color, 'piece' => $pieceID, 'row' => $newRow, 'col' => $newCol));
+pusher_trigger($gameChannel, 'movePiece', array('color' => $color, 'piece' => $pieceID, 'row' => $newRow, 'col' => $newCol));
 
 //get the next player in the table, or first if there is no next
 $nextID = single('MIN(ID)', PLAYER_TBL, 'GameID='.$gameID.' AND ID > '.$playerID);
@@ -26,7 +26,7 @@ update(ROLE_TBL, 'PlayerID="'.$nextID.'"', 'GameID='.$gameID.' AND Role="TURN"')
 unlock();
 
 $nextPlayer = single('NickName', PLAYER_TBL, 'ID='.$nextID);
-$pusher->trigger($gameChannel, 'setTurn', array('player' => $nextPlayer));
+pusher_trigger($gameChannel, 'setTurn', array('player' => $nextPlayer));
 
 succeed(array('success' => true));
 

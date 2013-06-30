@@ -113,8 +113,8 @@ function setEditMode($piece) {
 			title: pieceTitle,
 			position: 'top',
 			modal: true,
-			width: 600,
-			height: 480,
+			width: 700,
+			height: 550,
 			maxWidth: 1000,
 			maxHeight: 1000,
 			closeOnEscape: true,
@@ -372,7 +372,7 @@ function addResizeSlider($panel) {
 			Board.gameBoard.setSquareLength(newLength);
 			$('#resize_label').html('Board Size = ' + ui.value + '%');
 		}
-	});
+	});//*/
 }
 
 $(document).ready(function() {

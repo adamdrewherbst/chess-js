@@ -37,7 +37,7 @@ insert(ROLE_TBL, 'GameID,Role,PlayerID',
 
 include_once 'pusher_connect.php';
 global $pusher, $roomChannel;
-$pusher->trigger($roomChannel, 'addGame', array('game' => $player));
+pusher_trigger($roomChannel, 'addGame', array('game' => $player));
 
 succeed(array('success' => true, 'game' => $player, 'gameID' => $gameID));
 

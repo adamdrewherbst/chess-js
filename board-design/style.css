@@ -19,14 +19,15 @@
 }
 
 #piece-window {
-	width: 500;
-	height: 500;
-	display: none;
 }
 #piece-canvas-container {
 	position: absolute;
-	width: 420;
-	height: 300;
+	width: 420px;
+	height: 300px;
 	border: 1px dashed red;
+}
+#piece-canvas-controls {
+	position: absolute;
+	top: 320px;
 }
 

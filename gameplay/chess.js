@@ -211,12 +211,16 @@ function setLoggedIn(isLoggedIn) {
 		$('#logout_msg').hide();
 		$('#login_msg').show();
 		$('#select_board').show();
+		$('#resize_board').show();
+		$('#resize_label').show();
 	}else {
 		$('#login_msg').hide();
 		$('#logout_msg').show();
 		$('#create_game').hide();
 		$('#leave_game').hide();
 		$('#select_board').hide();
+		$('#resize_board').hide();
+		$('#resize_label').hide();
 		resetState();
 	}
 }

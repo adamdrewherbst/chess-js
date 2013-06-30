@@ -9,6 +9,9 @@ define('PLAYER_TBL', GAME_NAME.'Player');
 define('GAME_TBL', GAME_NAME.'Game');
 define('ROLE_TBL', GAME_NAME.'Role');
 
+//turn off Pusher when not connected to wifi, to avoid errors
+define('USE_PUSHER', false);
+
 function filePath($basefile) {
 	return $_SERVER['DOCUMENT_ROOT'] . '/chess/' . $basefile;
 }

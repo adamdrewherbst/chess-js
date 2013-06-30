@@ -37,14 +37,15 @@ if($othersPresent) {
 		update(ROLE_TBL, 'PlayerID="'.$nextPlayer.'"', 'GameID='.$gameID.' AND Role="TURN"');
 	}
 	unlock();
-	$pusher->trigger($gameChannel, 'playerLeave', array('player' => $player));
+	pusher_trigger($gameChannel, 'playerLeave', array('player' => $player));
 }
 else { //delete this game altogether
-	lock(GAME_TBL.','.ROLE_TBL, 'WRITE');
+	lock(GAME_TBL.','.ROLE_TBL.','.PIECE_TBL, 'WRITE');
+	delete(PIECE_TBL, 'GameID='.$gameID);
 	delete(ROLE_TBL, 'GameID='.$gameID);
 	delete(GAME_TBL, 'ID='.$gameID);
 	unlock();
-	$pusher->trigger($roomChannel, 'removeGame', array('game' => $gameName));
+	pusher_trigger($roomChannel, 'removeGame', array('game' => $gameName));
 }
 
 if(!$indirect) succeed(array('success' => true));

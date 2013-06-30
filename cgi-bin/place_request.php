@@ -12,7 +12,7 @@ lock(PLAYER_TBL, 'WRITE');
 update(PLAYER_TBL, 'GameRequest='.$gameID, 'ID='.$playerID);
 unlock();
 
-$pusher->trigger(game_channel($game), 'joinRequest', array('player' => $player));
+pusher_trigger(game_channel($game), 'joinRequest', array('player' => $player));
 
 succeed(array('success' => true));
 

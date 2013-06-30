@@ -18,7 +18,7 @@ if($gameID !== NULL) {
 lock(PLAYER_TBL, 'WRITE');
 delete(PLAYER_TBL, 'ID='.$playerID);
 unlock();
-$pusher->trigger($roomChannel, 'removePlayer', array('player' => $player));
+pusher_trigger($roomChannel, 'removePlayer', array('player' => $player));
 addResponse('player ' . $player . ' has logged out');
 
 succeed(array('success' => true));

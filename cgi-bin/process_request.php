@@ -24,7 +24,7 @@ unlock();
 
 include_once 'pusher_connect.php';
 global $pusher, $roomChannel, $gameChannel;
-$pusher->trigger($gameChannel, 'processRequest', array('game' => $player, 'owner' => $player, 'player' => $requester, 'accept' => $accept));
+pusher_trigger($gameChannel, 'processRequest', array('game' => $player, 'owner' => $player, 'player' => $requester, 'accept' => $accept));
 if($accept) {
 	$requesterID = single('ID', PLAYER_TBL, 'NickName="'.$requester.'"');
 	lock(PLAYER_TBL.','.GAME_TBL.','.ROLE_TBL, 'WRITE');
@@ -33,8 +33,8 @@ if($accept) {
 	update(PLAYER_TBL, 'Color="White"', 'ID='.$requesterID);
 	update(PLAYER_TBL, 'Color="Black"', 'ID='.$playerID);
 	unlock();
-	$pusher->trigger($roomChannel, 'setGame', array('inProgress' => true));
-	$pusher->trigger($gameChannel, 'setTurn', array('player' => $requester));
+	pusher_trigger($roomChannel, 'setGame', array('inProgress' => true));
+	pusher_trigger($gameChannel, 'setTurn', array('player' => $requester));
 }
 
 succeed(array('success' => true));

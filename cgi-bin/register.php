@@ -17,7 +17,7 @@ unlock();
 
 include_once 'pusher_connect.php';
 global $pusher, $roomChannel;
-$pusher->trigger($roomChannel, 'addPlayer', array('player' => $player));
+pusher_trigger($roomChannel, 'addPlayer', array('player' => $player));
 
 succeed(array('success' => true));
 
