@@ -25,6 +25,11 @@ pusher_trigger($gameChannel, 'movePiece',
 		'row' => $newRow,
 		'col' => $newCol));
 
+//if a pawn moved to the opposite end, change it to a queen
+if(strncmp($pieceID, 'P', 1) === 0 && (($color === 'Black' && intval($newRow) === 0) || ($color === 'White' && intval($newRow) === 7))) {
+	pusher_trigger($gameChannel, 'changePiece',	array('color' => $color, 'piece' => $pieceID, 'newRank' => 'Queen'));
+}
+
 //get the next player in the table, or first if there is no next
 $nextID = single('MIN(ID)', PLAYER_TBL, 'GameID='.$gameID.' AND ID > '.$playerID);
 if($nextID == NULL) $nextID = single('ID', PLAYER_TBL, 'GameID='.$gameID.' ORDER BY ID LIMIT 1');

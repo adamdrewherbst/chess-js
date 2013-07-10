@@ -208,43 +208,149 @@ function setEditMode($piece) {
 }
 
 Board.prototype.setPlayMode = function() {
+	var _self = this;
 	this.$board.find('.square').each(function(i) {
-		setPlayMode($(this));
+		_self.setSquarePlayMode($(this));
 	});
 };
-function setPlayMode($square) {
+Board.prototype.setSquarePlayMode = function($square) {
+	var _self = this;
 	var $piece = $square.children('.piece_img');
 	if($piece.length > 0) $piece.click(function(event) {
 		var $this = $(this);
 		console.log(pieceName($this) + ' clicked');
-		if(state.turn === state.nickname && $this.attr('color') === state.color) toggleSelect($this);
-		else console.log('not my turn/piece');
+		if(state.turn === state.nickname && $this.attr('color') === state.color) {
+			//if king is castling, he may move to a space where his own rook is - so when the rook is clicked, pass the event to it's square
+			var $parent = $this.parent('.square');
+			if($parent.attr('valid') === 'true') {
+				console.log('passing click from piece to square');
+				$parent.click();
+				return true;
+			}
+			//otherwise the user is selecting this piece to see what squares are available to move to
+			_self.toggleSelect($this);
+			return true;
+		}
+		else {
+			console.log('not my turn/piece');
+			return true;
+		}
 	});
 	$square.click(function(event) {
 		var $selectedPiece = $('.piece_img[select="true"]'), $selectedSquare = $('.square[select="true"]'), $this = $(this);
-		var newRow = $this.attr('row'), newCol = $this.attr('col');
-		var $oldSpace = $selectedPiece.parent(), oldRow = $oldSpace.attr('row'), oldCol = $oldSpace.attr('col');
+		var newRow = parseInt($this.attr('row')), newCol = parseInt($this.attr('col'));
+		var $oldSpace = $selectedPiece.parent(), oldRow = parseInt($oldSpace.attr('row')), oldCol = parseInt($oldSpace.attr('col'));
 		if($selectedPiece.length < 1 || $this.attr('valid') !== 'true') return;
 		
+		//check if the king is castling - if so, move the rook first to make sure the space is free for the king
+		if($selectedPiece.attr('rank') === 'King' && Math.abs(newCol - oldCol) === 2) {
+			var dir = newCol-oldCol > 0 ? 1 : -1;
+			for(var c = oldCol+dir; c >= 0 && c < _self.rows; c += dir) {
+				var $curSpace = $('.square[row="'+oldRow+'"][col="'+c+'"]');
+				var $occ = $curSpace.find('.piece_img');
+				if($occ.length > 0 && $occ.attr('color') === $selectedPiece.attr('color') && $occ.attr('rank') === 'Rook') {
+					console.log('found rook at ' + oldRow + ',' + c + ' - moving to ' + oldRow + ',' + (oldCol+dir));
+					_self.movePiece($occ, $('.square[row="'+oldRow+'"][col="'+(oldCol+dir)+'"]'));
+					do_ajax('move_piece', {'nickname': state.nickname, 'color': state.color, 'piece': $occ.attr('pieceID'),
+						'oldRow': oldRow, 'oldCol': c, 'row': oldRow, 'col': (oldCol+dir)}, function(data){}, {});
+					break;
+				}
+			}
+		}
+
 		//go ahead and move the piece on my board - assumes the AJAX call will succeed so that my board is synced with the other player's
-		console.log('moving ' + pieceName($selectedPiece) + ' to ' + newRow + ',' + newCol);
-		$this.children('.piece_img').detach(); //if this space has an opposing piece, take it!
-		$selectedPiece.detach().appendTo($this);
-		unselect();
-		
-		do_ajax('move_piece', {
-				'nickname': state.nickname,
-				'color': state.color,
-				'piece': $selectedPiece.attr('pieceID'),
-				'oldRow': oldRow,
-				'oldCol': oldCol,
-				'row': newRow,
-				'col': newCol
-			},
-			function(data) {
-			},
-		{});
+		_self.movePiece($selectedPiece, $this);
+		do_ajax('move_piece', {'nickname': state.nickname, 'color': state.color, 'piece': $selectedPiece.attr('pieceID'),
+				'oldRow': oldRow, 'oldCol': oldCol,	'row': newRow, 'col': newCol}, function(data){}, {});
 	});
+}
+
+Board.prototype.movePiece = function($piece, $space) {
+	var _self = this;
+	var $curSpace = $piece.parent('.square'), curRow = parseInt($curSpace.attr('row')), curCol = parseInt($curSpace.attr('col'));
+	var newRow = parseInt($space.attr('row')), newCol = parseInt($space.attr('col'));
+	console.log('moving ' + pieceName($piece) + ' to ' + newRow + ',' + newCol);
+	var $occupant = $space.find('.piece_img');
+	if($occupant.attr('color') !== $piece.attr('color')) $occupant.detach(); //if this space has an opposing piece, take it!
+	$piece.detach().appendTo($space);
+
+	//make sure the selected and valid squares are no longer highlighted
+	unselect();
+}
+
+Board.prototype.toggleSelect = function($piece) {
+	var _self = this;
+	var wasSelected = $piece.attr('select') === 'true';
+	unselect();
+	if(wasSelected) {
+		console.log('was selected');
+		return;
+	}
+	//select the piece
+	console.log('selecting ' + pieceName($piece));
+	$piece.attr('select', 'true');
+	console.log('piece selected = ' + $piece.attr('select'));
+	console.log('there are now ' + $('[select="true"]').length + ' selected pieces');
+	var $square = $piece.parent('.square'), curRow = parseInt($square.attr('row')), curCol = parseInt($square.attr('col'));
+	$square.attr('select', 'true');
+	//highlight all the squares this piece can move to
+	var vectors, multiple = true; //possible directions for the chosen piece
+	var rank = $piece.attr('rank'), color = $piece.attr('color');
+	switch(rank) {
+		case 'Pawn': vectors = color === 'White' ? [[0,1],[1,1],[-1,1]] : [[0,-1],[1,-1],[-1,-1]]; multiple = false; break;
+		case 'Rook': vectors = [[0,1],[1,0],[0,-1],[-1,0]]; break;
+		case 'Knight': vectors = [[1,2],[2,1],[1,-2],[2,-1],[-1,2],[-2,1],[-1,-2],[-2,-1]]; multiple = false; break;
+		case 'Bishop': vectors = [[1,1],[1,-1],[-1,1],[-1,-1]]; break;
+		case 'Queen': vectors = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]; break;
+		case 'King': vectors = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1],[2,0],[-2,0]]; multiple = false; break;
+	}
+	
+	//function to see if the next space in a given direction is valid - return value is whether or not to continue checking in that direction
+	var $space, row, col; //current space being checked and its coordinates
+	var checkNextSpace = function(vec) {
+		row = parseInt($space.attr('row')) + vec[1];
+		col = parseInt($space.attr('col')) + vec[0];
+		$space = $('.square[row=' + row + '][col=' + col + ']');
+		console.log('  checking space ' + row + ',' + col);
+		if($space.length < 1) return false; //outside the board
+		var $occupant = $space.children('.piece_img');
+
+		//allow king to castle
+		if(rank === 'King' && Math.abs(vec[0]) > 1) {
+			var castle = false; //whether allowed - must be empty space between king and rook in current row
+			var dir = vec[0] < 0 ? -1 : 1, $curSpace, $curOccupant;
+			for(var c = curCol+dir; c >= 0 && c < _self.cols; c += dir) {
+				$curSpace = $('.square[row="'+curRow+'"][col="'+c+'"]');
+				$curOccupant = $curSpace.find('.piece_img');
+				if($curOccupant.length < 1) continue;
+				castle = ($curOccupant.attr('color') === color && $curOccupant.attr('rank') === 'Rook');
+				break;
+			}
+			if(castle) $space.attr('valid', 'true');
+			return false;
+		}
+
+		if($occupant.length > 0) {
+			if($occupant.attr('color') === color) return false; //has one of my pieces
+			if(rank === 'Pawn' && vec[0] === 0) return false; //pawn can only take when moving diagonally
+		}
+		else if(rank === 'Pawn' && vec[0] !== 0) return false; //pawn can only move diagonally when taking
+
+		$space.attr('valid', 'true');
+		if($occupant.length > 0) return false; //has an opponent's piece - so it is valid, but can't move past it
+
+		//allow pawn to move 2 spaces on first move
+		if(rank === 'Pawn' && ((color === 'White' && row === 2) || (color === 'Black' && row === 5))) return true; 
+		
+		return multiple;
+	};
+
+	for(var i = 0; i < vectors.length; i++) {
+		var vec = vectors[i];
+		console.log('checking vector ' + vec[0] + ',' + vec[1]);
+		$space = $square;
+		while(checkNextSpace(vec));
+	}
 }
 
 function selectBoard() {

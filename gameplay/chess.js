@@ -142,10 +142,19 @@ function setState(attr, val) {
 				var row = parseInt(data.row), col = parseInt(data.col), $curSpace = $piece.parent();
 				if($curSpace.attr('row') === row && $curSpace.attr('col') === col) return;
 				var $space = $('.square[row="'+row+'"][col="'+col+'"]');
-				$space.children('.piece_img').detach(); //if this space has an opposing piece, take it!
-				$piece.detach().appendTo($space);
+				board.movePiece($piece, $space);
 				var moveMsg = data.color + ' ' + data.piece + ' from ' + spaceName(oldRow, oldCol) + ' to ' + spaceName(row, col);
 				$('#game_alert').html(moveMsg);
+			});
+			gameChannel.bind('changePiece', function(data) {
+				console.log('changing ' + data.color + ' ' + data.piece + ' to ' + data.newRank);
+				var $piece = $('.piece_img[color="'+data.color+'"][pieceID="'+data.piece+'"]');
+				var $dup = $('.piece_img[color="'+data.color+'"][rank="'+data.newRank+'"]');
+				$piece.html($dup.html());
+				$piece.attr('imgFile', $dup.attr('imgFile'));
+				$piece.data('imgJSON', $dup.data('imgJSON'));
+				$piece.data('imgSVG', $dup.data('imgSVG'));
+				$piece.attr('rank', data.newRank);
 			});
 			gameChannel.bind_all(function(event, data) {
 				for(var attr in data) {
@@ -272,62 +281,6 @@ function processRequest(player, decision) {
 			beginGame();
 		}
 	}, {});
-}
-
-function toggleSelect($piece) {
-	var wasSelected = $piece.attr('select') === 'true';
-	unselect();
-	if(wasSelected) {
-		console.log('was selected');
-		return;
-	}
-	//select the piece
-	console.log('selecting ' + pieceName($piece));
-	$piece.attr('select', 'true');
-	console.log('piece selected = ' + $piece.attr('select'));
-	console.log('there are now ' + $('[select="true"]').length + ' selected pieces');
-	var $square = $piece.parent('.square');
-	$square.attr('select', 'true');
-	//highlight all the squares this piece can move to
-	var vectors, multiple = true; //possible directions for the chosen piece
-	var rank = $piece.attr('rank'), color = $piece.attr('color');
-	switch(rank) {
-		case 'Pawn': vectors = color === 'White' ? [[0,1],[1,1],[-1,1]] : [[0,-1],[1,-1],[-1,-1]]; multiple = false; break;
-		case 'Rook': vectors = [[0,1],[1,0],[0,-1],[-1,0]]; break;
-		case 'Knight': vectors = [[1,2],[2,1],[1,-2],[2,-1],[-1,2],[-2,1],[-1,-2],[-2,-1]]; multiple = false; break;
-		case 'Bishop': vectors = [[1,1],[1,-1],[-1,1],[-1,-1]]; break;
-		case 'Queen': vectors = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]; break;
-		case 'King': vectors = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1],[2,0],[-2,0]]; multiple = false; break;
-	}
-	
-	//function to see if the next space in a given direction is valid - return value is whether or not to continue checking in that direction
-	var $space, row, col; //current space being checked and its coordinates
-	var checkNextSpace = function(vec) {
-		row = parseInt($space.attr('row')) + vec[1];
-		col = parseInt($space.attr('col')) + vec[0];
-		$space = $('.square[row=' + row + '][col=' + col + ']');
-		console.log('  checking space ' + row + ',' + col);
-		if($space.length < 1) return false; //outside the board
-		var $occupant = $space.children('.piece_img');
-		if($occupant.length > 0) {
-			if($occupant.attr('color') === color) return false; //has one of my pieces
-			if(rank === 'Pawn' && vec[0] === 0) return false; //pawn can only take when moving diagonally
-		}
-		else if(rank === 'Pawn' && vec[0] !== 0) return false; //pawn can only move diagonally when taking
-		$space.attr('valid', 'true');
-		if($occupant.length > 0) return false; //has an opponent's piece - so it is valid, but can't move past it
-
-		//allow pawn to move 2 spaces on first move
-		if(rank === 'Pawn' && ((color === 'White' && row === 2) || (color === 'Black' && row === 5))) return true; 
-		return multiple;
-	};
-
-	for(var i = 0; i < vectors.length; i++) {
-		var vec = vectors[i];
-		console.log('checking vector ' + vec[0] + ',' + vec[1]);
-		$space = $square;
-		while(checkNextSpace(vec));
-	}
 }
 
 function unselect() {
