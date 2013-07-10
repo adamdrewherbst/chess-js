@@ -61,9 +61,9 @@ $(document).ready(function() {
 		jQuery.each($('#piece-canvas-image-file')[0].files, function(i, file) {
 		    formData.append('file-'+i, file);
 		});
-		console.info(formData);
+		//console.info(formData);
 		do_ajax('post_image', formData, function(data) {
-			console.info(data);
+			//console.info(data);
 			fabric.Image.fromURL(filePath(data.filename), function(oImg) {
 				oImg.set({
 					originX: 'left',

@@ -7,6 +7,8 @@ global $pusher, $roomChannel, $gameChannel, $playerID, $gameID;
 
 $color = $_GET['color'];
 $pieceID = $_GET['piece'];
+$oldRow = $_GET['oldRow'];
+$oldCol = $_GET['oldCol'];
 $newRow = $_GET['row'];
 $newCol = $_GET['col'];
 
@@ -15,7 +17,13 @@ update(PIECE_TBL, 'Row='.strval($newRow).',Col='.strval($newCol),
 	'Color="'.$color.'" AND GameID='.$gameID.' AND PieceID="'.$pieceID.'"');
 unlock();
 
-pusher_trigger($gameChannel, 'movePiece', array('color' => $color, 'piece' => $pieceID, 'row' => $newRow, 'col' => $newCol));
+pusher_trigger($gameChannel, 'movePiece',
+	array('color' => $color,
+		'piece' => $pieceID,
+		'oldRow' => $oldRow,
+		'oldCol' => $oldCol,
+		'row' => $newRow,
+		'col' => $newCol));
 
 //get the next player in the table, or first if there is no next
 $nextID = single('MIN(ID)', PLAYER_TBL, 'GameID='.$gameID.' AND ID > '.$playerID);

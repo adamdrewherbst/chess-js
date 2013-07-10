@@ -5,7 +5,7 @@
 }
 .board_row {
 	clear: both;
-	overflow-x: auto;
+	/*overflow-x: auto;*/
 }
 .board_row:nth-child(even) > .square:nth-child(even) {
 	background-color: black;

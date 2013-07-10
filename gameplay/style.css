@@ -24,6 +24,9 @@
 #game_info {
 	clear: both;
 }
+#game_alert {
+	font-size: 25px;
+}
 #game_matchup {
 	float: left;
 }

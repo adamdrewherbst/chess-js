@@ -10,7 +10,7 @@ define('GAME_TBL', GAME_NAME.'Game');
 define('ROLE_TBL', GAME_NAME.'Role');
 
 //turn off Pusher when not connected to wifi, to avoid errors
-define('USE_PUSHER', false);
+define('USE_PUSHER', true);
 
 function filePath($basefile) {
 	return $_SERVER['DOCUMENT_ROOT'] . '/chess/' . $basefile;
@@ -22,6 +22,7 @@ function fail($msg, $unlock = false) {
 	$response .= $msg . PHP_EOL;
 	//if($mysqli->errno != 0)
 		addResponse('  Error: ' . $mysqli->errno . ' - ' . $mysqli->error);
+	
 	if($result !== null and get_class($result) === 'mysqli_result') $result->free();
 	if($unlock) $mysqli->query('UNLOCK TABLES');
 	if(!$db_indirect) {
@@ -35,6 +36,7 @@ function fail($msg, $unlock = false) {
 //to be used by clients to exit with data
 function succeed($data, $unlock = false) {
 	global $mysqli, $response, $result, $db_indirect;
+	
 	if($result !== null and get_class($result) === 'mysqli_result') $result->free();
 	if($unlock) $mysqli->query('UNLOCK TABLES');
 	if(!$db_indirect) {

@@ -1,8 +1,20 @@
 var colors = ['Black', 'White'], ranks = ['Pawn', 'Rook', 'Knight', 'Bishop', 'Queen', 'King'];
-var blankPiece = filePath('images/BLANK_PIECE.svg');
+var blankPieceFile = filePath('images/BLANK_PIECE.svg'), blankPiece = '';
 
 //constructor
 function Board(rows, cols, squareLength) {
+
+	//make sure we have the SVG code for the default piece image
+	if(blankPiece == '') $.ajax({
+		url: blankPieceFile,
+		async: false,
+		success: function(data) {
+			var svg = data.activeElement.outerHTML;
+			blankPiece = svg;
+		}
+	});
+	
+	//set up the board
 	this.rows = rows;
 	this.cols = cols;
 	this.squareLength = squareLength;
@@ -63,13 +75,15 @@ function Board(rows, cols, squareLength) {
 				if(piece !== 'King' && piece !== 'Queen') pieceID += piece.charAt(0);
 			}
 			
-			var $piece = $('<img class="piece_img" select="false"></img>');
-			$piece.attr('src', blankPiece);
+			var $piece = $('<div></div>');
+			$piece.attr('class', 'piece_img'); //addClass('piece_img');
+			$piece.attr('imgFile', blankPieceFile);
 			$piece.attr('color', team);
 			$piece.attr('rank', piece);
 			$piece.attr('piece', team + ' ' + piece);
 			$piece.attr('title', team + ' ' + piece);
 			$piece.attr('pieceID', pieceID);
+			$piece.append($(blankPiece));
 			$square.append($piece);
 		}
 		this.$board.children(':nth-child('+(row+1)+')').append($square);
@@ -103,11 +117,11 @@ function setEditMode($piece) {
 	});//*/
 	
 	//allow the user to edit the piece image by clicking on this square
+	var $dialog = $('#piece-window');
 	$piece.click(function(event) {
 		var $tgt = $(this);
 		var pieceTitle = $tgt.attr('piece'), pieceColor = $tgt.attr('color'), pieceRank = $tgt.attr('rank');
 		console.log('making dialog ' + pieceTitle + ' for ' + $tgt[0].tagName + ' .' + $tgt[0].className);
-		var $dialog = $('#piece-window');
 		$dialog.dialog({
 			dialogClass: 'piece-window-dialog',
 			title: pieceTitle,
@@ -129,20 +143,21 @@ function setEditMode($piece) {
 					text: 'Save',
 					click: function() {
 						var svg = fabricCanvas.toSVG(), json = fabricCanvas.toJSON();
-						console.info('JSON SENDING:');
-						console.info(json);
+						//console.info('JSON SENDING:');
+						//console.info(json);
 						do_ajax('save_piece', {
 								nickname: state.nickname, user: state.nickname, board: Board.gameBoard.boardName, color: pieceColor, rank: pieceRank,
 								imageSVG: svg, imageJSON: JSON.stringify(json)
 							},
 							function(data) {
-								console.info('JSON GOT:');
-								console.log(data.response);
+								//console.info('JSON GOT:');
+								//console.log(data.response);
 								//console.info(data.jsonGot);
 								//console.info(data);
 								//insert the returned svg file into all squares of the same color and rank
 								var $pieces = $('.piece_img[piece="'+pieceTitle+'"]');
-								$pieces.attr('src', filePath(data.filename)+'?'+(new Date().getTime()));
+								$pieces.empty().append($(svg));
+								$pieces.attr('imgFile', filePath(data.filename));
 								$pieces.data('imgSVG', svg);
 								$pieces.data('imgJSON', json);
 								$dialog.dialog('close');
@@ -151,6 +166,8 @@ function setEditMode($piece) {
 				},
 			],
 			close: function(event, ui) {
+				wPaintCanvas.removeMyListeners();
+				fabricCanvas.removeMyListeners();
 			}
 		});
 		wPaintCanvas.calcOffset();
@@ -185,8 +202,8 @@ function setEditMode($piece) {
 		}
 		fabricCanvas.renderAll();
 		wPaintCanvas.mainMenu.set_mode(wPaintCanvas.mainMenu, wPaintCanvas, 'Pencil');
-		console.info($(wPaintCanvas.canvas).offset());
-		console.info($(fabricCanvas.upperCanvasEl).offset());
+		//console.info($(wPaintCanvas.canvas).offset());
+		//console.info($(fabricCanvas.upperCanvasEl).offset());
 	});
 }
 
@@ -206,6 +223,7 @@ function setPlayMode($square) {
 	$square.click(function(event) {
 		var $selectedPiece = $('.piece_img[select="true"]'), $selectedSquare = $('.square[select="true"]'), $this = $(this);
 		var newRow = $this.attr('row'), newCol = $this.attr('col');
+		var $oldSpace = $selectedPiece.parent(), oldRow = $oldSpace.attr('row'), oldCol = $oldSpace.attr('col');
 		if($selectedPiece.length < 1 || $this.attr('valid') !== 'true') return;
 		
 		//go ahead and move the piece on my board - assumes the AJAX call will succeed so that my board is synced with the other player's
@@ -218,6 +236,8 @@ function setPlayMode($square) {
 				'nickname': state.nickname,
 				'color': state.color,
 				'piece': $selectedPiece.attr('pieceID'),
+				'oldRow': oldRow,
+				'oldCol': oldCol,
 				'row': newRow,
 				'col': newCol
 			},
@@ -231,7 +251,7 @@ function selectBoard() {
 	var $dialog = $('#board-select'), $boardPanel = $('#board-select-display');
 	//get the list of existing boards - server will return just a thumbnail of each, for efficiency
 	do_ajax('get_boards', {'nickname': state.nickname}, function(data) {
-		console.info(data);
+		//console.info(data);
 		$boardPanel.empty();
 		for(var user in data.boards) {
 			for(var board in data.boards[user]) {
@@ -295,7 +315,8 @@ Board.prototype.reset = function() {
 	this.boardName = '';
 	this.$board.find('.piece_img').each(function(i) {
 		var $this = $(this);
-		$this.attr('src', blankPiece);
+		$this.html($(blankPiece)[0].innerHTML);
+		$this.attr('imgFile', blankPieceFile);
 		$this.data('imgSVG', '');
 		$this.data('imgJSON', '');
 	});
@@ -308,19 +329,20 @@ Board.prototype.loadBoard = function(user, board) {
 		for(var c = 0; c < colors.length; c++) {
 			for(var r = 0; r < ranks.length; r++) {
 				var color = colors[c], rank = ranks[r], file = '', svg = '', json = '';
-				if(typeof data.pieces[color] === 'undefined' || typeof data.pieces[color][rank] === 'undefined') file = blankPiece;
+				if(typeof data.pieces[color] === 'undefined' || typeof data.pieces[color][rank] === 'undefined') svg = blankPiece;
 				else {
 					file = filePath(data.pieces[color][rank][0]);
 					svg = data.pieces[color][rank][1]
 					json = data.pieces[color][rank][2];
-					console.log('got ' + color + ' ' + rank);
-					console.info(json);
+					//console.log('got ' + color + ' ' + rank);
+					//console.info(json);
 				}
 				var $pieces = _self.$board.find('.piece_img[color="'+color+'"][rank="'+rank+'"]');
-				console.log('setting file for ' + $pieces.length + ' ' + color + ' ' + rank + 's to ' + file);
-				$pieces.attr('src', file);
-				if(svg.length > 0) {
-					$pieces.attr('imgSVG', svg);
+				//console.log('setting file for ' + $pieces.length + ' ' + color + ' ' + rank + 's to ' + file);
+				$pieces.empty().append($(svg));
+				$pieces.attr('imgSVG', svg);
+				if(json.length > 0) {
+					$pieces.attr('imgFile', file);
 					$pieces.data('imgJSON', JSON && JSON.parse(json) || $.parseJSON(json));
 				}
 			}
@@ -340,21 +362,22 @@ Board.prototype.save = function() {
 	
 	console.log('saving board ' + this.boardName);
 	do_ajax('save_board', {'nickname': state.nickname, 'board': this.boardName, 'contents': boardContents}, function(data) {
-		console.log(data.response);
+		//console.log(data.response);
 	}, {type: 'POST'});
 	for(var c = 0; c < colors.length; c++) {
 		for(var r = 0; r < ranks.length; r++) {
 			var color = colors[c], rank = ranks[r];
 			var $piece = $('.piece_img[color="'+color+'"][rank="'+rank+'"]');
-			if($piece.attr('src') !== blankPiece) {
-				console.log(pieceName($piece));
-				console.info($piece.data('imgSVG'));
+			if($piece.attr('imgFile') !== blankPieceFile) {
+				//console.log(pieceName($piece));
+				//console.info($piece.data('imgSVG'));
 				do_ajax('save_piece', {
 						nickname: state.nickname, user: state.nickname, board: this.boardName, color: color, rank: rank,
 						imageSVG: $piece.data('imgSVG'), imageJSON: JSON.stringify($piece.data('imgJSON'))
 					},
 					function(data) {}, {type: 'POST'});
-			}else console.log("don't need to save " + pieceName($piece));
+			}
+			//else console.log("don't need to save " + pieceName($piece));
 		}
 	}
 }

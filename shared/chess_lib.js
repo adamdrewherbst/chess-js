@@ -30,7 +30,7 @@ function do_ajax(action, data, success, additional) {
 		dataType: 'json',
 		success: function(data) {
 			if(typeof serverLog === 'function') serverLog(data.response);
-			else console.log('Response: ' + data.response);
+			//else console.log('Response: ' + data.response);
 			success(data);
 		},
 		error: function(jqXHR, textStatus, errorThrown) {
@@ -49,6 +49,7 @@ function login(func) { //func is executed after logging in
 			promptStr = 'Please re-enter.';
 			continue;
 		}
+		console.log('attempting register as ' + state.nickname);
 		do_ajax('register', {'name': state.nickname}, function(data) {
 			console.info('reg result');
 			console.info(data);
@@ -74,5 +75,7 @@ function color($square) {
 	var row = parseInt($square.attr('row')), col = parseInt($square.attr('col'));
 	return ((row + col) % 2 == 0) ? 'black' : 'white';
 }
-
+function spaceName(row, col) {
+	return String.fromCharCode(65+col) + (row+1)
+}
 
