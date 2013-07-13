@@ -15,6 +15,7 @@ function Board(rows, cols, squareLength) {
 	});
 	
 	//set up the board
+	this.numPlayers = 2;
 	this.rows = rows;
 	this.cols = cols;
 	this.squareLength = squareLength;
@@ -88,6 +89,15 @@ function Board(rows, cols, squareLength) {
 		}
 		this.$board.children(':nth-child('+(row+1)+')').append($square);
 	}
+	this.$board.append('<div class="board-taken-pieces"></div>');
+	this.$clone = this.$board.clone(); //for checking whether potential moves will cause check
+	this.setData('lastMove', [], false);
+	this.setData('allMoves', [], false);
+/*	this.$board.data('lastMove', []);
+	this.$board.data('allMoves', []);
+	this.$clone.data('lastMove', []);
+	this.$clone.data('allMoves', []);//*/
+	this.boardObj = new BoardObj(this);
 }
 
 //static members
@@ -102,6 +112,13 @@ Board.prototype.setSquareLength = function(squareLength) {
 		height: _self.squareLength + 'px'
 	});
 	_self.$board.find('.board_row').css({
+		width: (_self.cols * _self.squareLength) + 'px'
+	});
+	_self.$clone.find('.square').css({
+		width: _self.squareLength + 'px',
+		height: _self.squareLength + 'px'
+	});
+	_self.$clone.find('.board_row').css({
 		width: (_self.cols * _self.squareLength) + 'px'
 	});
 };
@@ -209,7 +226,8 @@ function setEditMode($piece) {
 
 Board.prototype.setPlayMode = function() {
 	var _self = this;
-	this.$board.find('.square').each(function(i) {
+	var $board = this.$board; //_self.numPlayers === 1 ? this.$clone : this.$board;
+	$board.find('.square').each(function(i) {
 		_self.setSquarePlayMode($(this));
 	});
 };
@@ -219,7 +237,7 @@ Board.prototype.setSquarePlayMode = function($square) {
 	if($piece.length > 0) $piece.click(function(event) {
 		var $this = $(this);
 		console.log(pieceName($this) + ' clicked');
-		if(state.turn === state.nickname && $this.attr('color') === state.color) {
+		if(_self.numPlayers === 1 || (state.turn === state.nickname && $this.attr('color') === state.color)) {
 			//if king is castling, he may move to a space where his own rook is - so when the rook is clicked, pass the event to it's square
 			var $parent = $this.parent('.square');
 			if($parent.attr('valid') === 'true') {
@@ -238,62 +256,156 @@ Board.prototype.setSquarePlayMode = function($square) {
 	});
 	$square.click(function(event) {
 		var $selectedPiece = $('.piece_img[select="true"]'), $selectedSquare = $('.square[select="true"]'), $this = $(this);
-		var newRow = parseInt($this.attr('row')), newCol = parseInt($this.attr('col'));
-		var $oldSpace = $selectedPiece.parent(), oldRow = parseInt($oldSpace.attr('row')), oldCol = parseInt($oldSpace.attr('col'));
 		if($selectedPiece.length < 1 || $this.attr('valid') !== 'true') return;
-		
-		//check if the king is castling - if so, move the rook first to make sure the space is free for the king
-		if($selectedPiece.attr('rank') === 'King' && Math.abs(newCol - oldCol) === 2) {
-			var dir = newCol-oldCol > 0 ? 1 : -1;
-			for(var c = oldCol+dir; c >= 0 && c < _self.rows; c += dir) {
-				var $curSpace = $('.square[row="'+oldRow+'"][col="'+c+'"]');
-				var $occ = $curSpace.find('.piece_img');
-				if($occ.length > 0 && $occ.attr('color') === $selectedPiece.attr('color') && $occ.attr('rank') === 'Rook') {
-					console.log('found rook at ' + oldRow + ',' + c + ' - moving to ' + oldRow + ',' + (oldCol+dir));
-					_self.movePiece($occ, $('.square[row="'+oldRow+'"][col="'+(oldCol+dir)+'"]'));
-					do_ajax('move_piece', {'nickname': state.nickname, 'color': state.color, 'piece': $occ.attr('pieceID'),
-						'oldRow': oldRow, 'oldCol': c, 'row': oldRow, 'col': (oldCol+dir)}, function(data){}, {});
-					break;
-				}
+		var newRow = parseInt($this.attr('row')), newCol = parseInt($this.attr('col'));
+		_self.doMove($selectedPiece, newRow, newCol, false);
+		_self.unselect();
+	});
+};
+
+//perform a move including all logic eg. castling, pawns becoming queens, broadcasting move via AJAX
+//-if clone = true, will only be done on clone board and not broadcasted
+Board.prototype.doMove = function($piece, newRow, newCol, clone) {
+	var _self = this, $board = clone ? this.$clone : this.$board;
+	var $oldSpace = $piece.parent('.square'), oldRow = parseInt($oldSpace.attr('row')), oldCol = parseInt($oldSpace.attr('col'));
+
+	//check if the king is castling - if so, move the rook first to make sure the space is free for the king
+	if($piece.attr('rank') === 'King' && Math.abs(newCol - oldCol) === 2) {
+		var dir = newCol-oldCol > 0 ? 1 : -1;
+		for(var c = oldCol+dir; c >= 0 && c < _self.rows; c += dir) {
+			var $curSpace = _self.find('.square[row="'+oldRow+'"][col="'+c+'"]', clone);
+			var $occ = $curSpace.find('.piece_img');
+			if($occ.length > 0 && $occ.attr('color') === $piece.attr('color') && $occ.attr('rank') === 'Rook') {
+				console.log('found rook at ' + oldRow + ',' + c + ' - moving to ' + oldRow + ',' + (oldCol+dir));
+				_self.movePiece($occ, oldRow, oldCol+dir, true);
+				if(!clone && _self.numPlayers > 1) do_ajax('move_piece', {'nickname': state.nickname, 'color': state.color, 'piece': $occ.attr('pieceID'),
+					'oldRow': oldRow, 'oldCol': c, 'row': oldRow, 'col': (oldCol+dir)}, function(data){}, {});
+				break;
 			}
 		}
+	}
 
-		//go ahead and move the piece on my board - assumes the AJAX call will succeed so that my board is synced with the other player's
-		_self.movePiece($selectedPiece, $this);
-		do_ajax('move_piece', {'nickname': state.nickname, 'color': state.color, 'piece': $selectedPiece.attr('pieceID'),
-				'oldRow': oldRow, 'oldCol': oldCol,	'row': newRow, 'col': newCol}, function(data){}, {});
-	});
+	//go ahead and move the piece on my board - assumes the AJAX call will succeed so that my board is synced with the other player's
+	_self.movePiece($piece, newRow, newCol, true);
+	if(!clone && _self.numPlayers > 1) do_ajax('move_piece', {'nickname': state.nickname, 'color': state.color, 'piece': $piece.attr('pieceID'),
+			'oldRow': oldRow, 'oldCol': oldCol,	'row': newRow, 'col': newCol}, function(data){}, {});
+	
+	//add this move to the move history
+	_self.resetMove(clone);
+	
+	if(_self.numPlayers === 1) {
+		var other = otherColor($piece.attr('color')), check = _self.checkCheck(other);
+		if(check) $('#game_alert').html(other + ' is in check!');
+	}
+};
+
+function otherColor(color) {
+	return color === 'White' ? 'Black' : 'White';
 }
 
-Board.prototype.movePiece = function($piece, $space) {
+//undo the last move on either just the clone board or both the main and clone boards
+Board.prototype.undoMove = function(clone) {
+	var _self = this, $board = clone ? this.$clone : this.$board;
+	var allMoves = _self.boardObj.history;
+	if(allMoves.length < 1) return false;
+	var lastMove = allMoves[allMoves.length-1];
+	console.log('undoing move ' + lastMove);
+	for(var i = lastMove.length-1; i >= 0; i--) {
+		var move = lastMove[i].split(' ');
+		var color = move[0], pieceID = move[1], lastSquare = move[2].split(','), curSquare = move[3];
+		var $piece = _self.find('.piece_img[color="'+color+'"][pieceID="'+pieceID+'"]', clone);
+		var $square = _self.find('.square[row="'+lastSquare[0]+'"][col="'+lastSquare[1]+'"]', clone);
+		console.log('moving ' + color + ' ' + pieceID + '[' + $piece.length + '] back to ' + lastSquare[0] + ',' + lastSquare[1] + '[' + $square.length + ']');
+		$piece.detach().appendTo($square);
+	}
+	_self.boardObj.undoMove();
+};
+
+//remove the last move from the cache, ie. upon starting a new turn, since it will no longer be undone
+Board.prototype.resetMove = function(clone) {
+	this.boardObj.resetMove();
+	
+/*	var $board = clone ? this.$clone : this.$board;
+	var lastMove = $board.data('lastMove');
+	if(lastMove.length > 0) {
+		var allMoves = $board.data('allMoves');
+		allMoves.push(lastMove);
+		this.setData('allMoves', allMoves, clone);
+	}
+	this.setData('lastMove', [], clone);//*/
+}
+
+//find child elements within either just the clone board, or both the main and clone boards
+Board.prototype.find = function(selector, clone) {
+	var $boards = clone ? this.$clone : this.$board.add(this.$clone);
+	return $boards.find(selector);
+};
+//set element data for either just the clone board, or both the main and clone boards
+Board.prototype.setData = function(key, val, clone) {
+	this.$clone.data(key, val);
+	if(!clone) this.$board.data(key, val);
+}
+
+//physically move a piece from one square to another on my board
+//-if save = true, save this move so it can be undone
+Board.prototype.movePiece = function($piece, newRow, newCol, save) {
 	var _self = this;
-	var $curSpace = $piece.parent('.square'), curRow = parseInt($curSpace.attr('row')), curCol = parseInt($curSpace.attr('col'));
-	var newRow = parseInt($space.attr('row')), newCol = parseInt($space.attr('col'));
+	var $curSpace = $piece.parents('.square'), curRow = parseInt($curSpace.attr('row')), curCol = parseInt($curSpace.attr('col'));
+	//var newRow = parseInt($space.attr('row')), newCol = parseInt($space.attr('col'));
 	console.log('moving ' + pieceName($piece) + ' to ' + newRow + ',' + newCol);
-	var $occupant = $space.find('.piece_img');
-	if($occupant.attr('color') !== $piece.attr('color')) $occupant.detach(); //if this space has an opposing piece, take it!
-	$piece.detach().appendTo($space);
-
-	//make sure the selected and valid squares are no longer highlighted
-	unselect();
-}
+	$piece.each(function(ind) {
+		var $this = $(this), $board = $this.parents('.board_outer');
+		//var lastMove = $board.data('lastMove');
+		var $space = $board.find('.square[row="'+newRow+'"][col="'+newCol+'"]');
+		var $occupant = $space.find('.piece_img');
+		if($occupant.length > 0 && $occupant.attr('color') !== $this.attr('color')) {
+			$occupant.detach().appendTo($board.find('.board-taken-pieces')); //if this space has an opposing piece, take it!
+			//_self.boardObj.movePiece($occupant.attr('color'), $occupant.attr('pieceID'), null, null, save);
+			//lastMove.push($occupant.attr('color') + ' ' + $occupant.attr('pieceID') + ' ' + newRow+','+newCol + ' R'); //R for remove
+		}
+		$this.detach().appendTo($space);
+		//console.info(ind + ' from board=' + _self.$board.data('lastMove') + ', clone=' + _self.$clone.data('lastMove'));
+		//lastMove.push($this.attr('color') + ' ' + $this.attr('pieceID') + ' ' + curRow+','+curCol + ' ' + newRow+','+newCol);
+		//if(save) {
+		//	$board.data('lastMove', lastMove);
+		//}
+		//console.info(ind + ' to board=' + _self.$board.data('lastMove') + ', clone=' + _self.$clone.data('lastMove'));
+	});
+	//make the move on the board object
+	_self.boardObj.movePiece($piece.attr('color'), $piece.attr('pieceID'), newRow, newCol, true, save);
+};
 
 Board.prototype.toggleSelect = function($piece) {
 	var _self = this;
 	var wasSelected = $piece.attr('select') === 'true';
-	unselect();
+	_self.unselect();
 	if(wasSelected) {
 		console.log('was selected');
 		return;
 	}
-	//select the piece
-	console.log('selecting ' + pieceName($piece));
+	//make sure we are including the piece's clone
+	$piece = $('.piece_img[color="'+$piece.attr('color')+'"][pieceID="'+$piece.attr('pieceID')+'"]');
+	_self.select($piece, false);
+};
+
+//select a piece and highlight all spaces it can move to
+Board.prototype.select = function($piece) {
+
+	var _self = this, $board = $piece.parents('.board_outer');
+	//select the piece and its square - make sure we are including its clone so the move will be duplicated
+	//console.log('selecting ' + pieceName($piece));
 	$piece.attr('select', 'true');
-	console.log('piece selected = ' + $piece.attr('select'));
-	console.log('there are now ' + $('[select="true"]').length + ' selected pieces');
-	var $square = $piece.parent('.square'), curRow = parseInt($square.attr('row')), curCol = parseInt($square.attr('col'));
+	var $square = $piece.parents('.square'), curRow = parseInt($square.attr('row')), curCol = parseInt($square.attr('col'));
 	$square.attr('select', 'true');
+
 	//highlight all the squares this piece can move to
+	_self.boardObj.getValidSquares($piece.attr('color'), $piece.attr('pieceID'), true);
+	for(var row in _self.boardObj.validSquares['valid'])
+		for(var col in _self.boardObj.validSquares['valid'][row]) {
+			_self.$board.add(_self.$clone).find('.square[row="'+row+'"][col="'+col+'"]').attr('valid', 'true');
+		}
+	return true;
+	
 	var vectors, multiple = true; //possible directions for the chosen piece
 	var rank = $piece.attr('rank'), color = $piece.attr('color');
 	switch(rank) {
@@ -310,8 +422,8 @@ Board.prototype.toggleSelect = function($piece) {
 	var checkNextSpace = function(vec) {
 		row = parseInt($space.attr('row')) + vec[1];
 		col = parseInt($space.attr('col')) + vec[0];
-		$space = $('.square[row=' + row + '][col=' + col + ']');
-		console.log('  checking space ' + row + ',' + col);
+		$space = $board.find('.square[row=' + row + '][col=' + col + ']');
+		//console.log('  checking space ' + row + ',' + col);
 		if($space.length < 1) return false; //outside the board
 		var $occupant = $space.children('.piece_img');
 
@@ -320,7 +432,7 @@ Board.prototype.toggleSelect = function($piece) {
 			var castle = false; //whether allowed - must be empty space between king and rook in current row
 			var dir = vec[0] < 0 ? -1 : 1, $curSpace, $curOccupant;
 			for(var c = curCol+dir; c >= 0 && c < _self.cols; c += dir) {
-				$curSpace = $('.square[row="'+curRow+'"][col="'+c+'"]');
+				$curSpace = $board.find('.square[row="'+curRow+'"][col="'+c+'"]');
 				$curOccupant = $curSpace.find('.piece_img');
 				if($curOccupant.length < 1) continue;
 				castle = ($curOccupant.attr('color') === color && $curOccupant.attr('rank') === 'Rook');
@@ -347,11 +459,50 @@ Board.prototype.toggleSelect = function($piece) {
 
 	for(var i = 0; i < vectors.length; i++) {
 		var vec = vectors[i];
-		console.log('checking vector ' + vec[0] + ',' + vec[1]);
+		//console.log('checking vector ' + vec[0] + ',' + vec[1]);
 		$space = $square;
 		while(checkNextSpace(vec));
 	}
+};
+
+Board.prototype.unselect = function() {
+	$('.piece_img[select="true"]').attr('select', 'false');
+	$('.square[select="true"]').attr('select', 'false');
+	//un-highlight the spaces this piece could move to
+	$('.square[valid="true"]').attr('valid', 'false');
+	this.boardObj.clearValid(true);
 }
+Board.prototype.getSelected = function() {
+	return $('.piece_img[select="true"]');
+}
+Board.prototype.getValid = function() {
+	return $('.square[valid="true"]');
+}
+
+//given an object representing a potential next move, see if it puts the moving team's king in check
+Board.prototype.checkMoveCheck = function(move, color) {
+	this.movePiece(move.$piece, move.newRow, move.newCol, true);
+	var ret = this.checkCheck(color);
+	this.undoMove(true);
+	return ret;
+};
+//see if the specified king is in check
+Board.prototype.checkCheck = function(color) {
+
+	return this.boardObj.checkCheck(color);
+	
+	var _self = this, $clone = this.$clone; //use the clone board - see checkMoveCheck()
+	var check = false, other = color === 'White' ? 'Black' : 'White';
+	var $king = $clone.find('.piece_img[color="'+color+'"][rank="King"]');
+	//mark all spaces on the board that the opposing team can get to in one move
+	$clone.find('.piece_img[color="'+other+'"]').each(function(i) {
+		_self.select($(this), true); //mark all valid spaces for this piece on the clone board
+	});
+	//see if the king's space is within these - if so, he is in check
+	var ret = ($king.parent('.square').attr('valid') === 'true');
+	_self.unselect();
+	return ret;
+};
 
 function selectBoard() {
 	var $dialog = $('#board-select'), $boardPanel = $('#board-select-display');
@@ -443,7 +594,8 @@ Board.prototype.loadBoard = function(user, board) {
 					//console.log('got ' + color + ' ' + rank);
 					//console.info(json);
 				}
-				var $pieces = _self.$board.find('.piece_img[color="'+color+'"][rank="'+rank+'"]');
+				var $boards = _self.$board.add(_self.$clone);
+				var $pieces = $boards.find('.piece_img[color="'+color+'"][rank="'+rank+'"]');
 				//console.log('setting file for ' + $pieces.length + ' ' + color + ' ' + rank + 's to ' + file);
 				$pieces.empty().append($(svg));
 				$pieces.attr('imgSVG', svg);
@@ -502,6 +654,7 @@ function addResizeSlider($panel) {
 			$('#resize_label').html('Board Size = ' + ui.value + '%');
 		}
 	});//*/
+	$slider.slider('value', 40);
 }
 
 $(document).ready(function() {

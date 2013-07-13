@@ -19,6 +19,9 @@
 .board_row:nth-child(odd) > .square:nth-child(odd) {
 	background-color: black;
 }
+.board-taken-pieces {
+	display: none;
+}
 
 .square {
 	float: left;

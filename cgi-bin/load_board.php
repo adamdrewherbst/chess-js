@@ -1,7 +1,7 @@
 <?php
 
 include_once 'dbconnect.php';
-include_once 'validate_client.php';
+//include_once 'validate_client.php';
 
 $user = $_GET['user'];
 $board = $_GET['board'];

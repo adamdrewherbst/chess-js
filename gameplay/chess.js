@@ -140,10 +140,14 @@ function setState(attr, val) {
 				var $piece = $('.piece_img[color="'+data.color+'"][pieceID="'+data.piece+'"]');
 				var oldRow = parseInt(data.oldRow), oldCol = parseInt(data.oldCol);
 				var row = parseInt(data.row), col = parseInt(data.col), $curSpace = $piece.parent();
-				if($curSpace.attr('row') === row && $curSpace.attr('col') === col) return;
-				var $space = $('.square[row="'+row+'"][col="'+col+'"]');
-				board.movePiece($piece, $space);
+				//var $space = $('.square[row="'+row+'"][col="'+col+'"]');
+				board.movePiece($piece, row, col, true);
 				var moveMsg = data.color + ' ' + data.piece + ' from ' + spaceName(oldRow, oldCol) + ' to ' + spaceName(row, col);
+				var other = data.color === 'White' ? 'Black' : 'White', check = board.checkCheck(other);
+				if(check) {
+					console.log(other + ' now in check!');
+					moveMsg += '. CHECK!';
+				}
 				$('#game_alert').html(moveMsg);
 			});
 			gameChannel.bind('changePiece', function(data) {
@@ -166,6 +170,7 @@ function setState(attr, val) {
 			break;
 		case 'turn':
 			$('#player_turn').html(state.turn);
+			board.resetMove(false);
 			//$('#game_alert').html($('#game_alert').html() + ' ' + turnMessage());
 			break;
 	}
@@ -283,19 +288,6 @@ function processRequest(player, decision) {
 	}, {});
 }
 
-function unselect() {
-	$('.piece_img[select="true"]').attr('select', 'false');
-	$('.square[select="true"]').attr('select', 'false');
-	//un-highlight the spaces this piece could move to
-	$('.square[valid="true"]').attr('valid', 'false');
-}
-function getSelected() {
-	return $('.piece_img[select="true"]');
-}
-function getValid() {
-	return $('.square[valid="true"]');
-}
-
 function beginGame() {
 	state.color = state.nickname === state.owner ? 'Black' : 'White';
 	$('#player_me').html(state.nickname);
@@ -303,6 +295,7 @@ function beginGame() {
 	$('#game_info').css('visibility', 'visible');
 	$('#game_alert').html('Let the game begin!');
 	$('#board_panel').append(board.$board);
+	$('#board_panel').append(board.$clone);
 }
 function turnMessage() {
 	return 'It is now ' + (state.turn === state.nickname ? 'YOUR' : state.turn+"'s") + ' turn.';
@@ -320,12 +313,23 @@ $(document).ready(function() {
 	
 	pusher_init();
 	board = new Board(8, 8, 100);
+	board.numPlayers = 1; //set to 1 player to just fool around with the board/moves
+	board.loadBoard('bickshame', 'strongbox');
 	board.setPlayMode();
 	Board.gameBoard = board;
 	addResizeSlider($('#controls'));
 	$('#dialog_overlay').css('visibility', 'hidden');
 	$('#game_info').css('visibility', 'hidden');
 	setLoggedIn(false);
-	
+	if(board.numPlayers === 1) {
+		$('#board_panel').append(board.$board);
+		$('#board_panel').append(board.$clone);
+		$('#select_board').show();
+		$('#resize_board').show();
+		$('#resize_label').show();
+		$('#game_info').css('visibility', 'visible');
+		$('#game_alert').html('Hello world.');
+		$('#controls').append('<button type="button" id="undo_move" onclick="board.undoMove(false)">Undo Move</button>');
+	}
 });
 
