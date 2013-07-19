@@ -33,8 +33,14 @@ if($accept) {
 	update(PLAYER_TBL, 'Color="White"', 'ID='.$requesterID);
 	update(PLAYER_TBL, 'Color="Black"', 'ID='.$playerID);
 	unlock();
-	pusher_trigger($roomChannel, 'setGame', array('inProgress' => true));
+	pusher_trigger($roomChannel, 'setGame', array('game' => $player, 'inProgress' => true));
 	pusher_trigger($gameChannel, 'setTurn', array('player' => $requester));
+	//also tell each player what piece set his opponent is using
+	foreach(array($player, $requester) as $p) {
+		$pieces = multiple_list('User,Board', PLAYER_TBL, 'NickName="'.$p.'"');
+		if($pieces != null and $pieces[0][0] != null)
+			pusher_trigger($gameChannel, 'changePieces', array('player' => $p, 'user' => $pieces[0][0], 'board' => $pieces[0][1]));
+	}
 }
 
 succeed(array('success' => true));

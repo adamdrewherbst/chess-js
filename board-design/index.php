@@ -18,6 +18,7 @@
 		<script type="text/javascript" src="../../aPaint/aPaint.js"></script>
 		<script type="text/javascript" src="../shared/Debug.js"></script>
 		<script type="text/javascript" src="../shared/chess_lib.js"></script>
+		<script type="text/javascript" src="../shared/game_logic.js"></script>
 		<script type="text/javascript" src="../shared/Board.js"></script>
 		<script type="text/javascript" src="chessboard.js"></script>
 	</head>

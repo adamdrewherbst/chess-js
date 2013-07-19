@@ -52,6 +52,8 @@ $cols = array(
 	array('name' => 'GameID', 'type' => 'SMALLINT UNSIGNED'),
 	array('name' => 'Color', 'type' => 'VARCHAR(30)'),
 	array('name' => 'GameRequest', 'type' => 'SMALLINT UNSIGNED'),
+	array('name' => 'User', 'type' => 'VARCHAR(30)'),
+	array('name' => 'Board', 'type' => 'VARCHAR(30)'),
 );
 initTable(PLAYER_TBL, $cols, 'ID', 'UNIQUE(NickName)');
 

@@ -20,6 +20,9 @@
 #login_msg,#logout_msg {
 	float: right;
 }
+#piece_display_options {
+	clear: both;
+}
 
 #game_info {
 	clear: both;

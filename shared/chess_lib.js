@@ -5,11 +5,14 @@ function filePath(basePath) {
 //what I think is the current game state, so the server can tell me when it changes
 var state = {
 	nickname:'', //my state.nickname in the game room
+	pieces: {user: '', board: ''}, //user and board whose pieces I am using
 	game:'', //game I am part of
 	color:'', //my team's color, white or black
 	opponent: '', //the other player in my game
+	opponentPieces: {user: '', board: ''}, //...and the set of pieces he is using
 	owner:'', //owner of my game
 	turn:'', //player whose turn it is
+	moved: false, //if it's my turn, marks whether I have gone already to prevent double-moves
 	winner:'', //player who has won my game
 	request: '', //game I am requesting to join
 	players: {},
@@ -34,7 +37,8 @@ function do_ajax(action, data, success, additional) {
 			success(data);
 		},
 		error: function(jqXHR, textStatus, errorThrown) {
-			console.log('ajax - ' + textStatus + ': ' + errorThrown);
+			console.log('ajax - ' + action + ' - ' + textStatus + ': ' + errorThrown);
+			console.info(data);
 		}
 	}, additional);
 	$.ajax(opts);
